@@ -1,3 +1,5 @@
+import GitHubProvider from "next-auth/providers/github";
+import { env } from "~/env";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import {
   getServerSession,
@@ -54,7 +56,12 @@ export const authOptions: NextAuthOptions = {
      * model. Refer to the NextAuth.js docs for the provider you want to use. Example:
      *
      * @see https://next-auth.js.org/providers/github
+     * 
      */
+     GitHubProvider({
+      clientId: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET
+    })
   ]
 };
 
