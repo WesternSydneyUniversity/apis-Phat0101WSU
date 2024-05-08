@@ -1,54 +1,45 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { PrismaClient } from "@prisma/client";
 
-const tasks = [
-  {
-    userId: "clvx6u6s50000a7ue8krjfp6c",
-    id: 1,
-    description: "Complete the project report",
-    completed: false
-  },
-  { userId: "clvx6u6s50000a7ue8krjfp6c", id: 2, description: "Clean the house", completed: true }
-];
+const prisma = new PrismaClient();
+
 export const tasksRouter = createTRPCRouter({
   tasks: protectedProcedure.query(async ({ ctx }) => {
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    return tasks.filter((task) => task.userId === ctx.session.user.id);
+    return await prisma.task.findMany({
+      where: { userId: ctx.session.user.id },
+    });
   }),
-  createTask: protectedProcedure
+  addTask: protectedProcedure
     .input(z.object({ message: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const newTask = {
-        id: tasks.length + 1,
-        description: input.message,
-        completed: false,
-        userId: ctx.session.user.id
-      };
-      tasks.push(newTask);
+      const newTask = await prisma.task.create({
+        data: {
+          description: input.message,
+          completed: false,
+          userId: ctx.session.user.id,
+        },
+      });
       return newTask;
     }),
-  updateTask: protectedProcedure
+  changeTask: protectedProcedure
     .input(z.object({ id: z.number(), message: z.string(), completed: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const taskIndex = tasks.findIndex((task) => task.id === input.id);
-      if (taskIndex !== -1) {
-        tasks[taskIndex] = { 
-          id: input.id, 
-          description: input.message, 
-          completed: !tasks[taskIndex]?.completed, 
-          userId: ctx.session.user.id };
-        return tasks[taskIndex];
-      }
-      return { message: "Task not found" };
+      const updatedTask = await prisma.task.update({
+        where: { id: input.id },
+        data: {
+          description: input.message,
+          completed: input.completed,
+        },
+      });
+      return updatedTask;
     }),
   deleteTask: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const taskIndex = tasks.findIndex((task) => task.id === input.id);
-      if (taskIndex !== -1) {
-        tasks.splice(taskIndex, 1);
-        return { message: "Task deleted" };
-      }
-      return { message: "Task not found" };
-    })
+      const deletedTask = await prisma.task.delete({
+        where: { id: input.id },
+      });
+      return deletedTask;
+    }),
 });
