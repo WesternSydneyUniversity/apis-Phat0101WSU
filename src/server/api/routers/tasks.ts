@@ -1,20 +1,42 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { db } from "~/server/db";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 export const tasksRouter = createTRPCRouter({
-  tasks: publicProcedure.query(async ({ ctx, input }) => {
-    const tasks = await db.task.findMany();
-    return tasks;
+  tasks: protectedProcedure.query(async ({ ctx }) => {
+    return await ctx.db.task.findMany({
+      where: { userId: ctx.session.user.id },
+    });
   }),
-  addTask: publicProcedure
-    .input(z.object({ task: z.string() }))
+  addTask: protectedProcedure
+    .input(z.object({ message: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // TODO
+      const newTask = await ctx.db.task.create({
+        data: {
+          description: input.message,
+          completed: false,
+          userId: ctx.session.user.id,
+        },
+      });
+      return newTask;
     }),
-  toggleTaskCompletion: publicProcedure
-    // .input(/* TODO */)
+  changeTask: protectedProcedure
+    .input(z.object({ id: z.number(), message: z.string(), completed: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      // TODO
-    })
+      const updatedTask = await ctx.db.task.update({
+        where: { id: input.id },
+        data: {
+          description: input.message,
+          completed: input.completed,
+        },
+      });
+      return updatedTask;
+    }),
+  deleteTask: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const deletedTask = await ctx.db.task.delete({
+        where: { id: input.id },
+      });
+      return deletedTask;
+    }),
 });
